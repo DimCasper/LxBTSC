@@ -20,6 +20,7 @@ HEADERS += QtLxBTSC/ChatWidget.h \
            QtLxBTSC/FullScreenWindow.h \
            QtLxBTSC/globals.h \
            QtLxBTSC/LogReader.h \
+           QtLxBTSC/lycheeUtils.h \
            QtLxBTSC/plugin.h \
            QtLxBTSC/PluginHelper.h \
            QtLxBTSC/TsClient.h \
@@ -34,6 +35,7 @@ SOURCES += QtLxBTSC/ChatWidget.cpp \
            QtLxBTSC/FullScreenWindow.cpp \
            QtLxBTSC/globals.cpp \
            QtLxBTSC/LogReader.cpp \
+           QtLxBTSC/lycheeUtils.cpp \
            QtLxBTSC/plugin.cpp \
            QtLxBTSC/PluginHelper.cpp \
            QtLxBTSC/TsClient.cpp \

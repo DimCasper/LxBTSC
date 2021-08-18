@@ -13,6 +13,7 @@
 #include "ConfigWidget.h"
 #include "FileTransferListWidget.h"
 #include "TsServer.h"
+#include "LycheeUtils.h"
 
 class PluginHelper : public QObject
 {
@@ -71,6 +72,8 @@ private slots:
 	void onPrintConsoleMessage(uint64 serverConnectionHandlerID, QString message, int targetMode) const;
 	void onConfigChanged() const;
 	void onReloaded() const;
+	void onChatTextChanged() const;
+	void onImageUploadFinished(QString) const;
 
 private:
 	QMainWindow* mainwindow;
@@ -83,6 +86,8 @@ private:
 	FileTransferListWidget* transfers;
 	QMenu* chatMenu;
 	ChatWidget* chat;
+
+	LycheeUtils* gallery;
 
 	QMap<unsigned long long, QString> serverIdCache;
 	QMap<QString, QSharedPointer<TsServer>> servers;

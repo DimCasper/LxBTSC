@@ -22,6 +22,7 @@ PluginHelper::PluginHelper(const QString& pluginPath, QObject *parent)
 	, transfers(new FileTransferListWidget())
 	, chat(new ChatWidget(pluginPath, this->wObject))
 	, pluginPath(pluginPath)
+	, gallery(new LycheeUtils("","","",this))
 {
 	utils::makeEmoteJsonArray(pluginPath);
 	emit wObject->loadEmotes();
@@ -72,7 +73,10 @@ void PluginHelper::initUi()
 	chatTabWidget->setMovable(false);
 
 	chatLineEdit = qobject_cast<QTextEdit*>(utils::findWidget("ChatLineEdit", parent));
+	connect(chatLineEdit, &QTextEdit::textChanged, this, &PluginHelper::onChatTextChanged);
 	connect(wObject, &TsWebObject::emoteSignal, this, &PluginHelper::onEmoticonAppend);
+
+	connect(gallery, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
 
 	emoticonButton = qobject_cast<QToolButton*>(utils::findWidget("EmoticonButton", parent));
 	emoticonButton->disconnect();
@@ -1082,10 +1086,38 @@ void PluginHelper::openTransfers() const
 	transfers->show();
 }
 
+QString Decrypt(QString cipher)
+{
+	QByteArray ePassword = QByteArray::fromBase64(cipher.toLocal8Bit());
+	QByteArray salt = ePassword.right(8);
+	ePassword.truncate(128);
+	QByteArray hash = ePassword.right(64);
+	QByteArray password;
+	for (int i = 0; i < 64; i++)
+	{
+		password.append(ePassword[i] ^ hash[i]);
+	}
+	for (; password.length(); password.remove(password.length()-1, 1))
+	{
+		if(QCryptographicHash::hash(password + salt, QCryptographicHash::Sha512) == hash)
+		{
+			break;
+		}
+	}
+	return QString(password);
+}
+
 void PluginHelper::onConfigChanged() const
 {
 	QString dir = config->getConfigAsString("DOWNLOAD_DIR");
 	transfers->setDownloadDirectory(dir);
+
+	QString imageUrl = config->getConfigAsString("IMAGE_URL");
+	QString imageUsername = config->getConfigAsString("IMAGE_USERNAME");
+	QString imagePassword = config->getConfigAsString("IMAGE_PASSWORD");
+	gallery->setUrl(imageUrl);
+	gallery->setUsername(imageUsername);
+	gallery->setPassword(Decrypt(imagePassword));
 }
 
 void PluginHelper::serverStopped(uint64 serverConnectionHandlerID, const QString& message) const
@@ -1112,4 +1144,50 @@ void PluginHelper::clientEnteredView(uint64 serverConnectionHandlerID, anyID cli
 	}
 
 	s->addClient(clientID);
+}
+
+void PluginHelper::onChatTextChanged() const
+{
+	static bool chatEditing = false;
+	static const QRegExp rx("(file:///\\w:(/[^/\\\\:*\"?<>|]+)+\\.(png|jpg|jpeg|gif))");
+	QString text = chatLineEdit->toPlainText();
+	QStringList list;
+	int index = 0;
+	int cursor = chatLineEdit->textCursor().position();
+	
+	if (chatEditing)
+	{
+		return;
+	}
+	chatEditing = true;
+	
+	if ((index = rx.indexIn(text)) != -1)
+	{
+		QString filePath = rx.cap(1);
+		list << filePath;
+		text.remove(index, rx.matchedLength());
+		cursor -= rx.matchedLength();
+		chatLineEdit->setPlainText(text);
+		QTextCursor tc = chatLineEdit->textCursor();
+		tc.setPosition(cursor);
+		chatLineEdit->setTextCursor(tc);
+
+		logInfo((QString("UploadImage:%1").arg(filePath)));
+		gallery->upload(QUrl(filePath).toLocalFile());
+	}
+
+	chatEditing = false;
+}
+
+void PluginHelper::onImageUploadFinished(QString url) const
+{
+	if(url != "")
+	{
+		chatLineEdit->insertPlainText(url);
+	}
+	else
+	{
+		logInfo("Image uploading failed.");
+		logInfo(QString("%1 %2 %3").arg(QSslSocket::supportsSsl()).arg(QSslSocket::sslLibraryBuildVersionString()).arg(QSslSocket::sslLibraryVersionString()));
+	}
 }

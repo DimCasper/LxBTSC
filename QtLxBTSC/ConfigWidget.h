@@ -68,6 +68,12 @@ private:
 	QCheckBox* clientDisconnectedEvent;
 	QCheckBox* ownDisconnectedEvent;
 	QCheckBox* ownConnectedEvent;
+	// image tab
+	QWidget* imageTab;
+	QFormLayout* imageLayout;
+	QLineEdit* galleryUrl;
+	QLineEdit* galleryUserName;
+	QLineEdit* galleryPassword;
 
 	void readConfig();
 };

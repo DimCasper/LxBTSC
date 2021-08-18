@@ -10,6 +10,8 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QFileDialog>
+#include <QCryptographicHash>
+#include <QRandomGenerator>
 
 ConfigWidget::ConfigWidget(const QString& path, QWidget *parent)
 	: QWidget(parent)
@@ -69,6 +71,19 @@ ConfigWidget::ConfigWidget(const QString& path, QWidget *parent)
 	ownDisconnectedEvent = new QCheckBox("Show own disconnect");
 	ownConnectedEvent = new QCheckBox("Show own connect");
 
+	imageTab = new QWidget();
+	imageLayout = new QFormLayout(imageTab);
+	imageTab->setLayout(imageLayout);
+	galleryUrl = new QLineEdit();
+	galleryUserName = new QLineEdit();
+	galleryPassword = new QLineEdit();
+	galleryPassword->setEchoMode(QLineEdit::Password);
+	galleryPassword->setMaxLength(64);
+
+	imageLayout->addRow(new QLabel("Gallery Url:", this), galleryUrl);
+	imageLayout->addRow(new QLabel("User name:", this), galleryUserName);
+	imageLayout->addRow(new QLabel("Password:", this), galleryPassword);
+
 	eventLayout->addRow(kickEvent);
 	eventLayout->addRow(banEvent);
 	eventLayout->addRow(moveSelfEvent);
@@ -106,6 +121,7 @@ ConfigWidget::ConfigWidget(const QString& path, QWidget *parent)
 	tabWidget = new QTabWidget(this);
 	tabWidget->addTab(generalTab, "General");
 	tabWidget->addTab(eventTab, "Events");
+	tabWidget->addTab(imageTab, "Image");
 	configLayout = new QFormLayout(this);
 	this->setLayout(configLayout);
 	configLayout->addRow(tabWidget);
@@ -149,6 +165,26 @@ void ConfigWidget::readConfig()
 		clientDisconnectedEvent->setChecked(jsonObj.value("EVENT_CLIENTDISCONNECT").toBool(true));
 		ownConnectedEvent->setChecked(jsonObj.value("EVENT_SELFCONNECT").toBool(true));
 		ownDisconnectedEvent->setChecked(jsonObj.value("EVENT_SELFDISCONNECT").toBool(true));
+
+		galleryUrl->setText(jsonObj.value("IMAGE_URL").toString());
+		galleryUserName->setText(jsonObj.value("IMAGE_USERNAME").toString());
+		QByteArray ePassword = QByteArray::fromBase64(jsonObj.value("IMAGE_PASSWORD").toString().toLocal8Bit());
+		QByteArray salt = ePassword.right(8);
+		ePassword.truncate(128);
+		QByteArray hash = ePassword.right(64);
+		QByteArray password;
+		for (int i = 0; i < 64; i++)
+		{
+			password.append(ePassword[i] ^ hash[i]);
+		}
+		for (; password.length(); password.remove(password.length()-1, 1))
+		{
+			if(QCryptographicHash::hash(password + salt, QCryptographicHash::Sha512) == hash)
+			{
+				break;
+			}
+		}
+		galleryPassword->setText(QString(password));
 
 		QJsonArray remotejson = jsonObj.value("REMOTE_EMOTES").toArray();
 		QStringList list;
@@ -216,6 +252,29 @@ void ConfigWidget::save()
 	jsonObj.insert("EVENT_CLIENTDISCONNECT", clientDisconnectedEvent->isChecked());
 	jsonObj.insert("EVENT_SELFCONNECT", ownConnectedEvent->isChecked());
 	jsonObj.insert("EVENT_SELFDISCONNECT", ownDisconnectedEvent->isChecked());
+
+	jsonObj.insert("IMAGE_URL", galleryUrl->text());
+	jsonObj.insert("IMAGE_USERNAME", galleryUserName->text());
+	// it is NOT encrypt here, your password is NOT safe/secure
+	QByteArray salt;
+	QDataStream(&salt,QIODevice::WriteOnly) << QRandomGenerator::system()->generate64();
+	QByteArray hash = QCryptographicHash::hash(galleryPassword->text().toLocal8Bit() + salt, QCryptographicHash::Sha512);
+	QByteArray oPassword = galleryPassword->text().toLocal8Bit();
+	QByteArray password;
+	for (int i = 0; i < 64; i++)
+	{
+		if(i < oPassword.length())
+		{
+			password.append(oPassword[i] ^ hash[i]);
+		}
+		else
+		{
+			password.append(0xFF ^ hash[i]);
+		}
+	}
+	password.append(hash);
+	password.append(salt);
+	jsonObj.insert("IMAGE_PASSWORD", QString(password.toBase64()));
 
 	if (remotes->toPlainText().length() > 1)
 	{
