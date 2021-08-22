@@ -130,16 +130,7 @@ void LycheeUtils::upload()
     request.setHeader(QNetworkRequest::LocationHeader, QUrl(LycheeUtils::url));
 
     QFile *file = new QFile(path);
-    if(file->open(QIODevice::ReadOnly))
-    {
-        qInfo() << "File OK!\n";
-    }
-    else
-    {
-        qInfo() << "File didn't open :(!\n";
-        qInfo() << path << "\n";
-        qInfo() << "\n";
-    }
+    file->open(QIODevice::ReadOnly);
 
     QHttpPart funcPart;
     funcPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"function\""));
@@ -217,7 +208,6 @@ void LycheeUtils::getUrlFinished()
     {
         QJsonDocument json = QJsonDocument::fromJson(data);
         QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(json.object().value("url").toString());
-        qInfo() << "URL : " << resolvedUrl.toString() << endl;
         QString picUrl = resolvedUrl.url();
 
         emit finished(this, picUrl);
@@ -282,7 +272,10 @@ bool LycheeUtils::setError(bool forceError)
 {
     if(forceError || reply->error() != QNetworkReply::NoError)
     {
-        reply->deleteLater();
+        if(reply != Q_NULLPTR)
+        {
+            reply->deleteLater();
+        }
         reply = Q_NULLPTR;
 
         emit finished(this, "");

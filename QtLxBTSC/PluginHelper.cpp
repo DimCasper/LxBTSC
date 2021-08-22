@@ -1175,7 +1175,7 @@ void PluginHelper::onChatTextChanged() const
 		tc.setPosition(cursor);
 		chatLineEdit->setTextCursor(tc);
 
-		logInfo((QString("UploadImage:%1").arg(filePath)));
+		//logInfo((QString("UploadImage:%1").arg(filePath)));
 		LycheeUtils* lu = new LycheeUtils();
 		connect(lu, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
 		lu->upload(QUrl(filePath).toLocalFile());
@@ -1256,7 +1256,7 @@ void PluginHelper::onImageUploadFinished(LycheeUtils* lu, QString url) const
 	else
 	{
 		logInfo("Image uploading failed.");
-		logInfo(QString("%1 %2 %3").arg(QSslSocket::supportsSsl()).arg(QSslSocket::sslLibraryBuildVersionString()).arg(QSslSocket::sslLibraryVersionString()));
+		//logInfo(QString("%1 %2 %3").arg(QSslSocket::supportsSsl()).arg(QSslSocket::sslLibraryBuildVersionString()).arg(QSslSocket::sslLibraryVersionString()));
 	}
 	lu->deleteLater();
 }
