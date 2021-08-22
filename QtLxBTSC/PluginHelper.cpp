@@ -13,6 +13,10 @@
 #include <QApplication>
 #include <QFileDialog>
 #include <QJsonArray>
+#include <QClipboard>
+#include <QTemporaryDir>
+#include <QTemporaryFile>
+#include <QMimeData>
 #include "LogReader.h"
 
 PluginHelper::PluginHelper(const QString& pluginPath, QObject *parent)
@@ -22,7 +26,6 @@ PluginHelper::PluginHelper(const QString& pluginPath, QObject *parent)
 	, transfers(new FileTransferListWidget())
 	, chat(new ChatWidget(pluginPath, this->wObject))
 	, pluginPath(pluginPath)
-	, gallery(new LycheeUtils("","","",this))
 {
 	utils::makeEmoteJsonArray(pluginPath);
 	emit wObject->loadEmotes();
@@ -73,10 +76,10 @@ void PluginHelper::initUi()
 	chatTabWidget->setMovable(false);
 
 	chatLineEdit = qobject_cast<QTextEdit*>(utils::findWidget("ChatLineEdit", parent));
+	// catch the paste hotkey event by eventFilter because we couldn't by implement it in the widget
+	chatLineEdit->installEventFilter(this);
 	connect(chatLineEdit, &QTextEdit::textChanged, this, &PluginHelper::onChatTextChanged);
 	connect(wObject, &TsWebObject::emoteSignal, this, &PluginHelper::onEmoticonAppend);
-
-	connect(gallery, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
 
 	emoticonButton = qobject_cast<QToolButton*>(utils::findWidget("EmoticonButton", parent));
 	emoticonButton->disconnect();
@@ -1115,9 +1118,9 @@ void PluginHelper::onConfigChanged() const
 	QString imageUrl = config->getConfigAsString("IMAGE_URL");
 	QString imageUsername = config->getConfigAsString("IMAGE_USERNAME");
 	QString imagePassword = config->getConfigAsString("IMAGE_PASSWORD");
-	gallery->setUrl(imageUrl);
-	gallery->setUsername(imageUsername);
-	gallery->setPassword(Decrypt(imagePassword));
+	LycheeUtils::setUrl(imageUrl);
+	LycheeUtils::setUsername(imageUsername);
+	LycheeUtils::setPassword(Decrypt(imagePassword));
 }
 
 void PluginHelper::serverStopped(uint64 serverConnectionHandlerID, const QString& message) const
@@ -1173,13 +1176,78 @@ void PluginHelper::onChatTextChanged() const
 		chatLineEdit->setTextCursor(tc);
 
 		logInfo((QString("UploadImage:%1").arg(filePath)));
-		gallery->upload(QUrl(filePath).toLocalFile());
+		LycheeUtils* lu = new LycheeUtils();
+		connect(lu, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
+		lu->upload(QUrl(filePath).toLocalFile());
 	}
 
 	chatEditing = false;
 }
 
-void PluginHelper::onImageUploadFinished(QString url) const
+void PluginHelper::onImageDownloaded(FileDownloader* fd) const
+{
+    QByteArray image = fd->downloadedData();
+    QUrl url = fd->downloadedUrl();
+    QFileInfo tempFileInfo(QDir::tempPath(), "XXXXXX" + url.fileName());
+    LycheeUtils* lu = new LycheeUtils();
+    connect(lu, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
+    QTemporaryFile* temp = new QTemporaryFile(tempFileInfo.absoluteFilePath(), lu);
+
+    if(temp->open())
+    {
+        temp->write(image);
+        temp->close();
+        lu->upload(temp->fileName());
+    }
+}
+
+bool PluginHelper::eventFilter(QObject *obj, QEvent *event)
+{
+	if (obj == chatLineEdit && event->type() == QEvent::KeyRelease)
+	{
+		QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+		if (keyEvent->key() == Qt::Key_V && keyEvent->modifiers() == Qt::ControlModifier)
+		{
+			const QClipboard *clipboard = QApplication::clipboard();
+			if (clipboard->mimeData()->hasImage())
+			{
+				logInfo(QString("Upload Image"));
+				QImage image = clipboard->image();
+				QFileInfo tempImageFileInfo(QDir::tempPath(), "XXXXXXunknown.png");
+				LycheeUtils* lu = new LycheeUtils();
+				connect(lu, &LycheeUtils::finished, this, &PluginHelper::onImageUploadFinished);
+				if(clipboard->mimeData()->hasHtml())
+				{
+					QUrl url;
+					url = utils::findXmlAttributeValue(clipboard->mimeData()->html(),"img","src");
+					tempImageFileInfo.setFile(QDir::tempPath() + QDir::separator() + "XXXXXX" + url.fileName());
+					if(!tempImageFileInfo.suffix().compare("gif",Qt::CaseInsensitive))
+					{
+						FileDownloader *fd = new FileDownloader(url);
+						connect(fd, &FileDownloader::downloaded, this, &PluginHelper::onImageDownloaded);
+						return true;
+					}
+				}
+				
+				QTemporaryFile* temp = new QTemporaryFile(tempImageFileInfo.absoluteFilePath(), lu);
+				if(temp->open())
+				{
+					image.save(temp);
+					temp->close();
+					lu->upload(temp->fileName());
+				}
+				else
+				{
+					delete lu;
+				}
+				return true;
+			}
+		}
+	} // if (obj == chatLineEdit)
+	return false;
+}
+
+void PluginHelper::onImageUploadFinished(LycheeUtils* lu, QString url) const
 {
 	if(url != "")
 	{
@@ -1190,4 +1258,5 @@ void PluginHelper::onImageUploadFinished(QString url) const
 		logInfo("Image uploading failed.");
 		logInfo(QString("%1 %2 %3").arg(QSslSocket::supportsSsl()).arg(QSslSocket::sslLibraryBuildVersionString()).arg(QSslSocket::sslLibraryVersionString()));
 	}
+	lu->deleteLater();
 }

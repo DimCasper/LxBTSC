@@ -17,4 +17,5 @@ namespace utils
 	QString time();
 	void makeEmoteJsonArray(const QString& path);
 	QString ts3WeirdBase16(const QString& id);
+	QString findXmlAttributeValue(const QString& xml, const QString& name, const QString& attribute);
 }

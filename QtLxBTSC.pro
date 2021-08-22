@@ -18,6 +18,7 @@ HEADERS += QtLxBTSC/ChatWidget.h \
            QtLxBTSC/FileTransferItemWidget.h \
            QtLxBTSC/FileTransferListWidget.h \
            QtLxBTSC/FullScreenWindow.h \
+           QtLxBTSC/fileDownloader.h \
            QtLxBTSC/globals.h \
            QtLxBTSC/LogReader.h \
            QtLxBTSC/lycheeUtils.h \
@@ -33,6 +34,7 @@ SOURCES += QtLxBTSC/ChatWidget.cpp \
            QtLxBTSC/FileTransferItemWidget.cpp \
            QtLxBTSC/FileTransferListWidget.cpp \
            QtLxBTSC/FullScreenWindow.cpp \
+           QtLxBTSC/filedownloader.cpp \
            QtLxBTSC/globals.cpp \
            QtLxBTSC/LogReader.cpp \
            QtLxBTSC/lycheeUtils.cpp \

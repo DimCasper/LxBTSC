@@ -3,26 +3,29 @@
 
 #include <QObject>
 #include <QNetworkAccessManager>
+#include <QImage>
 
 class LycheeUtils : public QObject
 {
     Q_OBJECT
 
 public:
-    LycheeUtils(QString url, QString username, QString password, QObject *parent = nullptr);
+    LycheeUtils(QObject *parent = nullptr);
+    ~LycheeUtils();
     bool upload(QString path);
 
-    void setUrl(QString url) { this->url = url; }
-    void setUsername(QString username) { this->username = username; }
-    void setPassword(QString password) { this->password = password; }
+    static void setUrl(QString url) { LycheeUtils::url = url; }
+    static void setUsername(QString username) { LycheeUtils::username = username; }
+    static void setPassword(QString password) { LycheeUtils::password = password; }
 
 private:
+    static QString url;
+    static QString username;
+    static QString password;
+
     QNetworkAccessManager qnam;
     QNetworkReply* reply;
-    QString url;
     QString path;
-    QString username;
-    QString password;
 
     void setCommonHeader(QNetworkRequest &req);
     void init();
@@ -31,12 +34,12 @@ private:
     void getUrl(QString id);
     void logout();
 
-    bool setError();
+    bool setError(bool forceError = false);
 
     void debugPrint(QString r);
 
 signals:
-    void finished(QString picUrl);
+    void finished(LycheeUtils*, QString picUrl);
 
 private slots:
     void initFinished();

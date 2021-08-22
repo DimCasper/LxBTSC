@@ -11,6 +11,7 @@
 #include <QDirIterator>
 #include <QApplication>
 #include <QTime>
+#include <QXmlStreamReader>
 
 namespace utils
 {
@@ -93,5 +94,24 @@ namespace utils
 			ret.append(replaceArray[i]);
 		}
 		return ret;
+	}
+
+	// find an attribute value in an element in an xml
+	QString findXmlAttributeValue(const QString& xml, const QString& name, const QString& attribute)
+	{
+		QXmlStreamReader reader(xml);
+		while (!reader.atEnd()) {
+			switch (reader.readNext()) {
+			case QXmlStreamReader::StartElement:
+				if(reader.name()==name)
+				{
+					return reader.attributes().value(attribute).toString();
+				}
+				break;
+			default:
+				break;
+			}
+		}
+		return "";
 	}
 }

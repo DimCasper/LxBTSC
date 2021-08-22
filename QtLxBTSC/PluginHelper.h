@@ -14,6 +14,7 @@
 #include "FileTransferListWidget.h"
 #include "TsServer.h"
 #include "LycheeUtils.h"
+#include "fileDownloader.h"
 
 class PluginHelper : public QObject
 {
@@ -57,6 +58,10 @@ public:
 
 	void channelEdited(uint64 serverConnectionHandlerID, uint64 channelID, anyID editorID, const QString& editorUniqueID, const QString& editorName);
 
+protected:
+
+	bool eventFilter(QObject *obj, QEvent *event) override;
+
 signals:
 	void triggerReloadEmotes();
 
@@ -73,7 +78,8 @@ private slots:
 	void onConfigChanged() const;
 	void onReloaded() const;
 	void onChatTextChanged() const;
-	void onImageUploadFinished(QString) const;
+	void onImageUploadFinished(LycheeUtils* , QString) const;
+	void onImageDownloaded(FileDownloader* fd) const;
 
 private:
 	QMainWindow* mainwindow;
@@ -86,8 +92,6 @@ private:
 	FileTransferListWidget* transfers;
 	QMenu* chatMenu;
 	ChatWidget* chat;
-
-	LycheeUtils* gallery;
 
 	QMap<unsigned long long, QString> serverIdCache;
 	QMap<QString, QSharedPointer<TsServer>> servers;

@@ -4,17 +4,27 @@
 #include <QMessageBox>
 #include <QtDebug>
 
-LycheeUtils::LycheeUtils(QString url, QString username, QString password, QObject *parent)
-    : QObject(parent),
-      url(url),
-      username(username),
-      password(password)
+QString LycheeUtils::url = "";
+QString LycheeUtils::username = "";
+QString LycheeUtils::password = "";
+
+LycheeUtils::LycheeUtils(QObject *parent)
+    : QObject(parent)
+{
+
+}
+
+LycheeUtils::~LycheeUtils()
 {
 
 }
 
 bool LycheeUtils::upload(QString path)
 {
+    if(path=="")
+    {
+        emit finished(this, "");
+    }
     this->path = path;
     init();
 
@@ -28,7 +38,7 @@ void LycheeUtils::setCommonHeader(QNetworkRequest &req)
 
 void LycheeUtils::init()
 {
-    QUrl initUrl(url + "/api/Session::init");
+    QUrl initUrl(LycheeUtils::url + "/api/Session::init");
     QNetworkRequest request(initUrl);
     QByteArray data;
 
@@ -53,7 +63,7 @@ void LycheeUtils::initFinished()
 
 void LycheeUtils::login()
 {
-    QUrl loginUrl(url + "/api/Session::login");
+    QUrl loginUrl(LycheeUtils::url + "/api/Session::login");
     QNetworkRequest request(loginUrl);
     QJsonObject body;
     QNetworkCookie XSRF;
@@ -71,8 +81,8 @@ void LycheeUtils::login()
 
     request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
     body.insert("function","Session::login");
-    body.insert("username",username);
-    body.insert("password",password);
+    body.insert("username",LycheeUtils::username);
+    body.insert("password",LycheeUtils::password);
 
     reply = qnam.post(request,QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, this, &LycheeUtils::loginFinished);
@@ -103,7 +113,7 @@ void LycheeUtils::loginFinished()
 
 void LycheeUtils::upload()
 {
-    QUrl loginUrl(url + "/api/Photo::add");
+    QUrl loginUrl(LycheeUtils::url + "/api/Photo::add");
     QNetworkRequest request(loginUrl);
     QHttpMultiPart *data = new QHttpMultiPart();
     QNetworkCookie XSRF;
@@ -117,7 +127,7 @@ void LycheeUtils::upload()
         }
     }
     request.setRawHeader("X-" + XSRF.name(),XSRF.value().mid(0,XSRF.value().indexOf('%')));
-    request.setHeader(QNetworkRequest::LocationHeader, QUrl(url));
+    request.setHeader(QNetworkRequest::LocationHeader, QUrl(LycheeUtils::url));
 
     QFile *file = new QFile(path);
     if(file->open(QIODevice::ReadOnly))
@@ -169,7 +179,7 @@ void LycheeUtils::uploadFinished()
 
 void LycheeUtils::getUrl(QString id)
 {
-    QUrl getUrlUrl(url + "/api/Photo::get");
+    QUrl getUrlUrl(LycheeUtils::url + "/api/Photo::get");
     QNetworkRequest request(getUrlUrl);
     QJsonObject body;
     QNetworkCookie XSRF;
@@ -183,7 +193,7 @@ void LycheeUtils::getUrl(QString id)
         }
     }
     request.setRawHeader("X-" + XSRF.name(),XSRF.value().mid(0,XSRF.value().indexOf('%')));
-    request.setHeader(QNetworkRequest::LocationHeader, QUrl(url));
+    request.setHeader(QNetworkRequest::LocationHeader, QUrl(LycheeUtils::url));
 
     request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
     body.insert("function","Photo::get");
@@ -206,15 +216,15 @@ void LycheeUtils::getUrlFinished()
     if(reply->request().rawHeader("Content-Type") == "application/json")
     {
         QJsonDocument json = QJsonDocument::fromJson(data);
-        QUrl resolvedUrl = QUrl(url).resolved(json.object().value("url").toString());
+        QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(json.object().value("url").toString());
         qInfo() << "URL : " << resolvedUrl.toString() << endl;
         QString picUrl = resolvedUrl.url();
 
-        emit finished(picUrl);
+        emit finished(this, picUrl);
     }
     else
     {
-        setError();
+        setError(true);
         return;
     }
 
@@ -226,7 +236,7 @@ void LycheeUtils::getUrlFinished()
 
 void LycheeUtils::logout()
 {
-    QUrl initUrl(url + "/api/Session::logout");
+    QUrl initUrl(LycheeUtils::url + "/api/Session::logout");
     QNetworkRequest request(initUrl);
     QByteArray data;
     QNetworkCookie XSRF;
@@ -268,14 +278,14 @@ void LycheeUtils::sslErrors(const QList<QSslError> &errors)
     reply->ignoreSslErrors();
 }
 
-bool LycheeUtils::setError()
+bool LycheeUtils::setError(bool forceError)
 {
-    if(reply->error() != QNetworkReply::NoError)
+    if(forceError || reply->error() != QNetworkReply::NoError)
     {
         reply->deleteLater();
         reply = Q_NULLPTR;
 
-        emit finished("");
+        emit finished(this, "");
 
         return true;
     }
