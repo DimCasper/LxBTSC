@@ -1,4 +1,4 @@
-#include "lycheeUtils.h"
+#include "LycheeUtils.h"
 #include <QtNetwork>
 #include <QJsonObject>
 #include <QMessageBox>
@@ -263,7 +263,7 @@ void LycheeUtils::logoutFinished()
     reply = Q_NULLPTR;
 }
 
-void LycheeUtils::sslErrors(const QList<QSslError> &errors)
+void LycheeUtils::sslErrors(const QList<QSslError> &)
 {
     reply->ignoreSslErrors();
 }
