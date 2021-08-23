@@ -1152,7 +1152,7 @@ void PluginHelper::clientEnteredView(uint64 serverConnectionHandlerID, anyID cli
 void PluginHelper::onChatTextChanged() const
 {
 	static bool chatEditing = false;
-	static const QRegExp rx("(file:///\\w:(/[^/\\\\:*\"?<>|]+)+\\.(png|jpg|jpeg|gif))");
+	static const QRegExp rx("(file:///\\w:(/[^/\\\\:*\"?<>|]+)+\\.(png|jpg|jpeg|gif))", Qt::CaseInsensitive);
 	QString text = chatLineEdit->toPlainText();
 	QStringList list;
 	int index = 0;
