@@ -207,9 +207,15 @@ void LycheeUtils::getUrlFinished()
     if(reply->request().rawHeader("Content-Type") == "application/json")
     {
         QJsonDocument json = QJsonDocument::fromJson(data);
-        QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(json.object().value("url").toString());
+        QString subUrl = json.object().value("url").toString();
+        QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(subUrl);
         QString picUrl = resolvedUrl.url();
 
+        if(subUrl.isEmpty())
+        {
+            setError(true);
+            return ;
+        }
         emit finished(this, picUrl);
     }
     else
