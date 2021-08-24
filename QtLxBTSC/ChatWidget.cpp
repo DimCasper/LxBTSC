@@ -14,6 +14,8 @@
 #include <QWebEngineProfile>
 #include <QTimer>
 #include <QWebEngineCookieStore>
+#include <QMimeData>
+#include <QFileInfo>
 
 ChatWidget::ChatWidget(const QString& path, TsWebObject* webObject, QWidget *parent)
     : QFrame(parent)
@@ -31,6 +33,9 @@ ChatWidget::ChatWidget(const QString& path, TsWebObject* webObject, QWidget *par
 	this->setObjectName(QStringLiteral("ChatWidget"));
 		
 	this->setStyleSheet("border: 1px solid gray");
+
+	this->setAcceptDrops(true);
+	view->setAcceptDrops(false);
 
 	verticalLayout->setSpacing(1);
 	verticalLayout->setContentsMargins(1, 1, 1, 1);
@@ -186,4 +191,32 @@ void ChatWidget::onFullScreenRequested(QWebEngineFullScreenRequest request)
 		request.accept();
 		fullScreenWindow.reset();
 	}
+}
+
+void ChatWidget::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasImage())
+    {
+        event->acceptProposedAction();
+    }
+    else if(event->mimeData()->hasUrls() &&
+            event->mimeData()->urls().count() > 0)
+    {
+        static const QRegExp extRx("^(png|jpg|jpeg|gif)$", Qt::CaseInsensitive);
+		foreach(QUrl url, event->mimeData()->urls())
+        {
+			QFileInfo fileInfo(url.toLocalFile());
+			if (extRx.indexIn(fileInfo.suffix()) == -1)
+			{
+				return ;
+			}
+		}
+        event->acceptProposedAction();
+    }
+}
+
+void ChatWidget::dropEvent(QDropEvent *event)
+{
+    const QMimeData *mime = event->mimeData();
+    emit dropped(mime);
 }

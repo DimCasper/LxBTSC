@@ -78,8 +78,9 @@ private slots:
 	void onConfigChanged() const;
 	void onReloaded() const;
 	void onChatTextChanged() const;
-	void onImageUploadFinished(LycheeUtils* , QString) const;
+	void onImageUploadFinished(LycheeUtils* , QString);
 	void onImageDownloaded(FileDownloader* fd) const;
+	void onChatDropped(const QMimeData*) const;
 
 private:
 	QMainWindow* mainwindow;
@@ -92,6 +93,8 @@ private:
 	FileTransferListWidget* transfers;
 	QMenu* chatMenu;
 	ChatWidget* chat;
+
+	bool chatLineEditHasPlaceHolder;
 
 	QMap<unsigned long long, QString> serverIdCache;
 	QMap<QString, QSharedPointer<TsServer>> servers;
@@ -111,4 +114,6 @@ private:
 	void requestServerEmoteJson(uint64 serverConnectionHandlerID, uint64 channelID, const QString& filePath);
 
 	QSharedPointer<TsServer> getServer(uint64 serverConnectionHandlerID) const;
+
+    bool uploadImageFromMime(const QMimeData* mime) const;
 };

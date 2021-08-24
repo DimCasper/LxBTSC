@@ -15,6 +15,7 @@
 #include <QtWebChannel/qwebchannel.h>
 #include <TsWebObject.h>
 #include <QWebEngineFullScreenRequest>
+#include <QMimeData>
 #include "FullScreenWindow.h"
 
 class ChatWidget : public QFrame
@@ -32,6 +33,7 @@ public:
 	void channelUrlClicked(const QUrl &url);
 	void linkHovered(const QUrl &url);
 	void pageReloaded();
+    void dropped(const QMimeData*);
 
 	private slots:
 	void onCopyActivated() const;
@@ -39,6 +41,8 @@ public:
 	void onShowContextMenu(const QPoint &);
 	void onLinkHovered(const QUrl &);
 	void onFullScreenRequested(QWebEngineFullScreenRequest request);
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
 	QVBoxLayout* verticalLayout;
