@@ -11,6 +11,7 @@
 #include "globals.h"
 #include <QRegularExpression>
 #include <QBuffer>
+#include <QUrl>
 #include <utils.h>
 
 QJsonObject LogReader::readLog(const QString& serverUniqueID)
@@ -73,7 +74,7 @@ QJsonArray LogReader::parseMessages(const QByteArray& log)
 			QString time = match.captured(1);
 			QString link = match.captured(2);
 			QString uid = match.captured(3);
-			QString name = match.captured(4);
+			QString name = QUrl(match.captured(4)).toDisplayString();
 			QString text = match.captured(5);
 
 			message.insert("time", time);
