@@ -35,6 +35,9 @@ Embed linked images, youtube, tweets etc...
 
 ![Twitter](https://i.imgur.com/rAaTNXc.png)
 
+Dropping/Pasting image & uploading images
+
+
 
 ## Building
 
