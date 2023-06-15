@@ -46,7 +46,6 @@ private slots:
     void loginFinished();
     void uploadFinished();
     void getUrlFinished();
-    void logoutFinished();
     void sslErrors(const QList<QSslError> &errors);
 };
 

@@ -40,9 +40,12 @@ void LycheeUtils::init()
 {
     QUrl initUrl(LycheeUtils::url + "/api/Session::init");
     QNetworkRequest request(initUrl);
-    QByteArray data;
+    QJsonObject body;
 
-    reply = qnam.post(request, data);
+    request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
+    request.setRawHeader("Accept","application/json");
+
+    reply = qnam.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, this, &LycheeUtils::initFinished);
     connect(reply, &QNetworkReply::sslErrors, this, &LycheeUtils::sslErrors);
 }
@@ -80,6 +83,7 @@ void LycheeUtils::login()
     request.setHeader(QNetworkRequest::LocationHeader, QUrl(url));
 
     request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
+    request.setRawHeader("Accept","application/json");
     body.insert("function","Session::login");
     body.insert("username",LycheeUtils::username);
     body.insert("password",LycheeUtils::password);
@@ -97,13 +101,15 @@ void LycheeUtils::loginFinished()
 
     if(setError()) return;
 
-    if(s=="true")
+    int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    if(httpStatus == 204)
     {
         upload();
     }
-    else if(s=="false")
+    else if(httpStatus == 401)
     {
-
+        // Wrong auth
     }
     else
     {
@@ -128,6 +134,7 @@ void LycheeUtils::upload()
     }
     request.setRawHeader("X-" + XSRF.name(),XSRF.value().mid(0,XSRF.value().indexOf('%')));
     request.setHeader(QNetworkRequest::LocationHeader, QUrl(LycheeUtils::url));
+    request.setRawHeader("Accept","application/json");
 
     QFile *file = new QFile(path);
     file->open(QIODevice::ReadOnly);
@@ -137,10 +144,15 @@ void LycheeUtils::upload()
     funcPart.setBody("Photo::add");
     QHttpPart textPart;
     textPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"albumID\""));
-    textPart.setBody("0");
+    // so far the document doesn't update(230203)
+    // got the cue from the reply
+    // "album i d  must either be null, a string with 24 characters or one of the built-in IDs unsorted, starred, public, recent"
+    //textPart.setBody("unsorted");
     QHttpPart imagePart;
     // imagePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/" + QFileInfo(path).suffix()));
-    imagePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"0\"; filename=\"" + QFileInfo(path).fileName() + "\""));
+    // so far the document doesn't update(230203)
+    // got the cue from browser development tools
+    imagePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"file\"; filename=\"" + QFileInfo(path).fileName() + "\""));
     imagePart.setBodyDevice(file);
     file->setParent(data); // we cannot delete the file now, so delete it with the data
 
@@ -158,6 +170,7 @@ void LycheeUtils::uploadFinished()
 {
     QByteArray data = reply->readAll();
     QString s(data);
+    QJsonDocument doc = QJsonDocument::fromJson(data);
     debugPrint(s);
 
     if(setError()) return;
@@ -165,7 +178,7 @@ void LycheeUtils::uploadFinished()
     reply->deleteLater();
     reply = Q_NULLPTR;
 
-    getUrl(s);
+    getUrl(doc.object().value("id").toString());
 }
 
 void LycheeUtils::getUrl(QString id)
@@ -185,6 +198,7 @@ void LycheeUtils::getUrl(QString id)
     }
     request.setRawHeader("X-" + XSRF.name(),XSRF.value().mid(0,XSRF.value().indexOf('%')));
     request.setHeader(QNetworkRequest::LocationHeader, QUrl(LycheeUtils::url));
+    request.setRawHeader("Accept","application/json");
 
     request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
     body.insert("function","Photo::get");
@@ -207,15 +221,13 @@ void LycheeUtils::getUrlFinished()
     if(reply->request().rawHeader("Content-Type") == "application/json")
     {
         QJsonDocument json = QJsonDocument::fromJson(data);
-        QString subUrl = json.object().value("url").toString();
-        QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(subUrl);
+        QJsonObject obj = json.object();
+
+        obj = obj["size_variants"].toObject();
+        obj = obj["original"].toObject();
+        QUrl resolvedUrl = QUrl(LycheeUtils::url).resolved(obj["url"].toString());
         QString picUrl = resolvedUrl.url();
 
-        if(subUrl.isEmpty())
-        {
-            setError(true);
-            return ;
-        }
         emit finished(this, picUrl);
     }
     else
@@ -234,7 +246,7 @@ void LycheeUtils::logout()
 {
     QUrl initUrl(LycheeUtils::url + "/api/Session::logout");
     QNetworkRequest request(initUrl);
-    QByteArray data;
+    QJsonObject body;
     QNetworkCookie XSRF;
 
     foreach(QNetworkCookie cookie, qnam.cookieJar()->cookiesForUrl(url))
@@ -246,27 +258,10 @@ void LycheeUtils::logout()
         }
     }
     request.setRawHeader("X-" + XSRF.name(),XSRF.value().mid(0,XSRF.value().indexOf('%')));
+    request.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
+    request.setRawHeader("Accept","application/json");
 
-    reply = qnam.post(request, data);
-    connect(reply, &QNetworkReply::finished, this, &LycheeUtils::logoutFinished);
-    connect(reply, &QNetworkReply::sslErrors, this, &LycheeUtils::sslErrors);
-}
-
-void LycheeUtils::logoutFinished()
-{
-    QByteArray data = reply->readAll();
-    QString s(data);
-    debugPrint(s);
-
-    if(setError()) return;
-
-    if(s == "true")
-    {
-        // do nothing in logout no matter the result is
-    }
-
-    reply->deleteLater();
-    reply = Q_NULLPTR;
+    qnam.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
 }
 
 void LycheeUtils::sslErrors(const QList<QSslError> &)
@@ -298,17 +293,17 @@ void LycheeUtils::debugPrint(QString r)
     QString error = reply->errorString();
     if(reply->error() != QNetworkReply::NoError)
     {
-        qInfo() << "Error occured : " << error << endl;
+        qInfo() << "Error occured : " << error << Qt::endl;
     }
     qInfo() << "request header\n";
     foreach (QByteArray h, reply->request().rawHeaderList()) {
-        qInfo() << h << " : " << reply->request().rawHeader(h) << endl;
+        qInfo() << h << " : " << reply->request().rawHeader(h) << Qt::endl;
     }
     qInfo() << "reply header\n";
     foreach (QNetworkReply::RawHeaderPair p, reply->rawHeaderPairs()) {
-        qInfo() << p.first << " : " << p.second << endl;
+        qInfo() << p.first << " : " << p.second << Qt::endl;
     }
     qInfo() << "reply data\n";
-    qInfo() << r << endl;
+    qInfo() << r << Qt::endl;
 #endif
 }
