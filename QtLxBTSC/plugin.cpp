@@ -13,7 +13,7 @@
 #include "plugin.h"
 #include "PluginHelper.h"
 
-#define PLUGIN_API_VERSION 23
+#define PLUGIN_API_VERSION 26
 //#define PATH_BUFSIZE 512
 
 static char* pluginID = nullptr;
@@ -31,7 +31,7 @@ const char* ts3plugin_name() {
 
 /* Plugin version */
 const char* ts3plugin_version() {
-    return "1.14";
+    return "1.14d";
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
